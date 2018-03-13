@@ -43,6 +43,11 @@ class UploadHistoricalOrders extends Command
         $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
         $this->_orderHelper = $objectManager->get('\Riskified\Decider\Api\Order\Helper');
 
+        $authToken = $this->_scopeConfig->getValue('riskified/riskified/key', \Magento\Store\Model\ScopeInterface::SCOPE_STORE);
+        $env = constant('\Riskified\Common\Env::' . $this->_scopeConfig->getValue('riskified/riskified/env'));
+        $domain = $this->_scopeConfig->getValue('riskified/riskified/domain');
+        Riskified::init($domain, $authToken, $env, Validations::SKIP);
+
         $this->_transport = new CurlTransport(new Signature\HttpDataSignature());
         $this->_transport->timeout = 15;
 
@@ -56,15 +61,29 @@ class UploadHistoricalOrders extends Command
     {
         $this->setName('riskified:sync:historical-orders');
         $this->setDescription('Send your historical orders to riskified backed');
+        $this->setDefinition($this->getInputList());
 
         parent::configure();
     }
+
+    public function getInputList()
+    {
+        $options[] = new \Symfony\Component\Console\Input\InputArgument(
+            self::START_FROM,
+            \Symfony\Component\Console\Input\InputArgument::OPTIONAL,
+            '[N] page to resume upload'
+        );
+        return $options;
+     }
 
     /**
      * @inheritdoc
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        if($num = $input->getArgument(self::START_FROM, false)){
+            $this->_currentPage = $num;
+        }
 
         $authToken = $this->_scopeConfig->getValue('riskified/riskified/key', \Magento\Store\Model\ScopeInterface::SCOPE_STORE);
         $env = constant('\Riskified\Common\Env::' . $this->_scopeConfig->getValue('riskified/riskified/env'));
@@ -75,11 +94,7 @@ class UploadHistoricalOrders extends Command
         $output->writeln("Riskified target environment: $env \n");
         $output->writeln("*********** \n");
 
-
-        Riskified::init($domain, $authToken, $env, Validations::SKIP);
-
-        $fullOrderRepository = $this->getEntireCollection();
-        $total_count = $fullOrderRepository->getSize();
+        $total_count = $this->getTotalRows();
 
         $output->writeln("Starting to upload orders, total_count: $total_count \n");
         $this->getCollection();
@@ -87,6 +102,7 @@ class UploadHistoricalOrders extends Command
             try {
                 $this->postOrders();
                 $this->_totalUploaded += count($this->_orders);
+                $output->writeln("Current Page: [" . $this->_currentPage . "] Memory Usage: " . memory_get_usage());
                 $this->_currentPage++;
                 $output->writeln("Uploaded " .
                     $this->_totalUploaded .
@@ -107,12 +123,13 @@ class UploadHistoricalOrders extends Command
      *
      * @return \Magento\Sales\Api\Data\OrderSearchResultInterface
      */
-    protected function getEntireCollection() {
-        $orderResult = $this
-            ->_orderRepository
-            ->getList($this->_searchCriteriaBuilder);
-        return $orderResult;
+    protected function getTotalRows() {
+        if($count = $this->_resourceConnection->getConnection('read')->fetchOne('SELECT count(*) FROM ' . $this->_resourceConnection->getTableName('sales_order'))){
+            return $count;
+        }
+        return 0;
     }
+
 
     /**
      * Retrieve paginated collection
