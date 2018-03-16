@@ -1,6 +1,8 @@
 <?php
 namespace Riskified\Decider\Command;
 
+use Magento\Framework\App\ObjectManagerFactory;
+use Magento\Store\Model\StoreManager;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -24,29 +26,28 @@ class UploadHistoricalOrders extends Command
     protected $_totalUploaded = 0;
     protected $_currentPage = 1;
     protected $_orders;
+    protected $_objectManagerFactory;
 
     const BATCH_SIZE = 10;
 
-    public function __construct(
-        \Magento\Framework\App\State $state,
-        \Magento\Store\Model\StoreManagerInterface $storeManagerInterface,
-        \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig,
-        \Magento\Sales\Api\OrderRepositoryInterface $orderRepository,
-        \Magento\Framework\Api\SearchCriteria $searchCriteriaBuilder
-    ) {
+    public function __construct(ObjectManagerFactory $objectManagerFactory)
+    {
+        $this->_objectManagerFactory = $objectManagerFactory;
+        parent::__construct();
+    }
+
+    protected function initialize(InputInterface $input, OutputInterface $output)
+    {
+        $objectManager = $this->_objectManagerFactory->create([]);
+        $state = $objectManager->get(\Magento\Framework\App\State::class);
         $state->setAreaCode('adminhtml');
 
-        $this->_scopeConfig             = $scopeConfig;
-        $this->_orderRepository         = $orderRepository;
-        $this->_searchCriteriaBuilder   = $searchCriteriaBuilder;
-
-        $objectManager = \Magento\Framework\App\ObjectManager::getInstance();
-        $this->_orderHelper = $objectManager->get('\Riskified\Decider\Api\Order\Helper');
-
+        $this->_scopeConfig             = $objectManager->get(\Magento\Framework\App\Config\ScopeConfigInterface::class);
+        $this->_orderRepository         = $objectManager->get(\Magento\Sales\Api\OrderRepositoryInterface::class);
+        $this->_searchCriteriaBuilder   = $objectManager->get(\Magento\Framework\Api\SearchCriteria::class);
+        $this->_orderHelper             = $objectManager->get(\Riskified\Decider\Api\Order\Helper::class);
         $this->_transport = new CurlTransport(new Signature\HttpDataSignature());
         $this->_transport->timeout = 15;
-
-        parent::__construct();
     }
 
     /**
