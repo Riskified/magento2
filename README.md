@@ -15,3 +15,14 @@ If you don't have an existing account, please start by signing up to Riskified [
 * Includes a **Sandbox Environment** option for testing and integration.
 
 https://www.riskified.com/magento/
+
+## Install with Magento Connect
+[Riskified documentation](https://www.riskified.com/documentation/magento)
+
+
+## Install with composer
+```sh
+bin/composer require riskified/decider
+bin/magento module:enable Riskified_Decider
+bin/magento setup:upgrade
+```
