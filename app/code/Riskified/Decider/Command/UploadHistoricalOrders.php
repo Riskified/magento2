@@ -2,7 +2,6 @@
 namespace Riskified\Decider\Command;
 
 use Magento\Framework\App\ObjectManagerFactory;
-use Magento\Store\Model\StoreManager;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
