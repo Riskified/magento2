@@ -440,10 +440,6 @@ class Helper
                 array_push($refundObjectCollection, $this->buildRefundDetailsObject($memo));
             }
         }
-        $currentMemo = $this->getCreditMemoFromRegistry();
-        if(!is_null($currentMemo)){
-            array_push($refundObjectCollection, $this->buildRefundDetailsObject($currentMemo));
-        }
 
         return $refundObjectCollection;
     }
