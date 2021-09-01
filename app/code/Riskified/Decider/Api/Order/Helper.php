@@ -2,6 +2,9 @@
 namespace Riskified\Decider\Api\Order;
 use Riskified\OrderWebhook\Model;
 use Magento\Customer\Model\ResourceModel\GroupRepository;
+use \PayPal\Braintree\Gateway\Response\ThreeDSecureDetailsHandler;
+use \Riskified\Decider\Model\Gateway\Braintree\Response\ThreeDSecureDetailsHandler as DeciderThreeDSecureDetails;
+
 class Helper
 {
     private $_order;
@@ -343,6 +346,13 @@ class Helper
                     $houseVerification = $payment->getAdditionalInformation('avsStreetAddressResponseCode');
                     $zipVerification = $payment->getAdditionalInformation('avsPostalCodeResponseCode');
                     $avs_result_code = $houseVerification . ',' . $zipVerification;
+
+                    if ($this->payment->getAdditionalInformation(DeciderThreeDSecureDetails::ECI)) {
+                        $eci = $this->payment->getAdditionalInformation(DeciderThreeDSecureDetails::ECI);
+                        $transStatus = $this->payment->getAdditionalInformation(DeciderThreeDSecureDetails::TRANS_STATUS);
+                        $liabilityShift = $this->payment->getAdditionalInformation(ThreeDSecureDetailsHandler::LIABILITY_SHIFTED);
+                    }
+
                     break;
                 case 'payflowpro':
                     $cc_details = $payment->getAdditionalInformation('cc_details');
@@ -416,7 +426,10 @@ class Helper
             'cvv_result_code' => $cvv_result_code,
             'credit_card_number' => $credit_card_number,
             'credit_card_company' => $credit_card_company,
-            'credit_card_bin' => $credit_card_bin
+            'credit_card_bin' => $credit_card_bin,
+            'eci' => isset($eci) ? $eci : null,
+            'trans_status' => isset($transStatus) ? $transStatus : null,
+            'liability_shift' => isset($liabilityShift) ? $liabilityShift : null,
         ), 'strlen'));
     }
     public function getShippingLines()
