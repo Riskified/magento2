@@ -2,6 +2,7 @@
 namespace Riskified\Decider\Api;
 
 use Riskified\Common\Signature;
+use Riskified\Decider\Api\Api;
 use Riskified\OrderWebhook\Model;
 use Riskified\OrderWebhook\Transport;
 
@@ -94,6 +95,11 @@ class Order
                     $orderForTransport = $this->loadRefund();
                     $this->_logger->log(serialize($orderForTransport));
                     $response = $transport->refundOrder($orderForTransport);
+                    break;
+                case Api::ACTION_CHECKOUT_DENIED:
+                    $checkoutForTransport = $this->loadQuote($order);
+                    $this->_logger->log(serialize($checkoutForTransport));
+                    $response = $transport->deniedCheckout($checkoutForTransport);
                     break;
             }
             $eventData['response'] = $response;
@@ -224,6 +230,55 @@ class Order
         $order->payment_details = $this->_orderHelper->getPaymentDetails();
         $order->line_items = $this->_orderHelper->getLineItems();
         $order->shipping_lines = $this->_orderHelper->getShippingLines();
+
+        if (!$this->_backendAuthSession->isLoggedIn()) {
+            $order->client_details = $this->_orderHelper->getClientDetails();
+        }
+        return $order;
+    }
+
+    private function loadQuote($model)
+    {
+        $gateway = 'unavailable';
+        if ($model->getPayment()) {
+            $gateway = $model->getPayment()->getMethod();
+        }
+        $order_array = [
+            'id' => (int) $model->getId(),
+            'email' => $model->getEmail(),
+            'created_at' => $this->_orderHelper->formatDateAsIso8601($model->getCreatedAt()),
+            'currency' => $model->getOrderCurrencyCode(),
+            'updated_at' => $this->_orderHelper->formatDateAsIso8601($model->getUpdatedAt()),
+            'gateway' => $gateway,
+            'browser_ip' => $this->_orderHelper->getRemoteIp(),
+            'note' => $model->getCustomerNote(),
+            'total_price' => $model->getGrandTotal(),
+            'total_discounts' => $model->getDiscountAmount(),
+            'subtotal_price' => $model->getBaseSubtotalInclTax(),
+            'discount_codes' => $this->_orderHelper->getDiscountCodes($model),
+            'taxes_included' => true,
+            'total_tax' => $model->getBaseTaxAmount(),
+            'total_weight' => $model->getWeight(),
+            'cancelled_at' => $this->_orderHelper->formatDateAsIso8601($this->_orderHelper->getCancelledAt()),
+            'financial_status' => $model->getState(),
+            'vendor_id' => $model->getStoreId(),
+            'vendor_name' => $model->getStoreName(),
+            'cart_token' => $this->session->getSessionId()
+        ];
+
+        if ($this->_orderHelper->getCustomerSession() && $this->_orderHelper->getCustomerSession()->isLoggedIn()) {
+            unset($order_array['browser_ip']);
+            unset($order_array['cart_token']);
+        }
+        $payload = array_filter($order_array, 'strlen');
+
+        $order = new Model\Checkout($payload);
+
+        $order->customer = $this->_orderHelper->getCustomer();
+        $order->shipping_address = $this->_orderHelper->getShippingAddress();
+        $order->billing_address = $this->_orderHelper->getBillingAddress();
+        $order->payment_details = $this->_orderHelper->getPaymentDetails();
+        $order->line_items = $this->_orderHelper->getLineItems();
 
         if (!$this->_backendAuthSession->isLoggedIn()) {
             $order->client_details = $this->_orderHelper->getClientDetails();
