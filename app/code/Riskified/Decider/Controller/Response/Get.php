@@ -8,6 +8,7 @@ use Magento\Framework\App\Action\Context;
 use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\Controller\ResultInterface;
 use Riskified\Decider\Api\Api;
+use Riskified\Decider\Api\Config;
 use Riskified\Decider\Api\Log;
 use Riskified\Decider\Api\Order;
 use \Riskified\DecisionNotification;
@@ -37,16 +38,27 @@ class Get extends Action
     private $apiLogger;
 
     /**
+     * @var Config
+     */
+    private $config;
+
+    /**
      * @param Context $context
      * @param Api $api
      * @param Order $apiOrder
      * @param Log $apiLogger
      */
-    public function __construct(Context $context, Api $api, Order $apiOrder, Log $apiLogger)
-    {
+    public function __construct(
+        Context $context, 
+        Api $api, 
+        Order $apiOrder, 
+        Log $apiLogger,
+        Config $config
+    ) {
         $this->api = $api;
         $this->apiLogger = $apiLogger;
         $this->apiOrderLayer = $apiOrder;
+        $this->config = $config;
 
         // CsrfAwareAction Magento2.3 compatibility
         if (interface_exists("\Magento\Framework\App\CsrfAwareActionInterface")) {
@@ -72,6 +84,15 @@ class Get extends Action
         $logger = $this->apiLogger;
 
         $logger->log("Start execute");
+        $endpointDelay = $this->config->getDecisionEndpointDelay();
+
+        if ($endpointDelay > 0) {
+            $logger->log("Extension has set delay $endpointDelay sec.");
+
+            sleep($endpointDelay);
+
+            $logger->log("Continuing.");
+        }
 
         $id = null;
         $msg = null;
