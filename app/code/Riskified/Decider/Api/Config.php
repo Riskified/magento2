@@ -91,6 +91,20 @@ class Config
         );
     }
 
+    /**
+     * Return delay neeeded for decision endpoint.
+     * 
+     * @return bool
+     */
+    public function getDecisionEndpointDelay($scopeId = 0)
+    {
+        return (int)$this->_scopeConfig->getValue(
+            'riskified/riskified/delay',
+            ScopeInterface::SCOPE_STORES,
+            $scopeId
+        );
+    }
+
     public function getConfigBeaconUrl()
     {
         return self::BEACON_URL;
