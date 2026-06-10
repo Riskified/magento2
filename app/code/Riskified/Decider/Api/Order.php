@@ -338,6 +338,7 @@ class Order
             return $this->_orderFactory->getCollection()
                 ->addFieldToFilter('entity_id', $order_id)
                 ->addFieldToFilter('increment_id', $increment_id)
+                ->setPageSize(1)
                 ->getFirstItem();
         }
 
